@@ -1,0 +1,52 @@
+package com.hussein.notes_api.controllers.notes
+
+import com.hussein.notes_api.mappers.toResponse
+import com.hussein.notes_api.mappers.toNote
+import com.hussein.notes_api.repository.NoteRepository
+import org.bson.types.ObjectId
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.DeleteMapping
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
+import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
+import org.springframework.web.bind.annotation.RestController
+
+@RestController
+@RequestMapping("/notes")
+class NoteController(private val noteRepository: NoteRepository) {
+
+
+    /**
+     * 1:21:24
+     * */
+
+    @PostMapping
+    fun save(@RequestBody body: NoteRequest): NoteResponse {
+        val ownerId = SecurityContextHolder.getContext().authentication.principal as String
+
+        val note = noteRepository.save(body.toNote(ownerId))
+        return note.toResponse()
+    }
+
+    @GetMapping
+    fun findByOwnerId(): List<NoteResponse> {
+        val ownerId = SecurityContextHolder.getContext().authentication.principal as String
+        return noteRepository.findByOwnerId(ObjectId(ownerId)).map {
+            it.toResponse()
+        }
+    }
+
+    @DeleteMapping(path = ["/{id}"])
+    fun deleteById(@PathVariable id: String) {
+        val note = noteRepository.findById(ObjectId(id))
+            .orElseThrow { IllegalArgumentException("note nt found") }
+        val ownerId = SecurityContextHolder.getContext().authentication.principal as String
+        if (note.ownerId.toHexString() == ownerId) {
+            noteRepository.deleteById(ObjectId(id))
+        }
+    }
+
+}
